@@ -20,6 +20,13 @@
 		<cfreturn 'Leave me alone.' />
 	</cffunction>
 
+	<cffunction name="onMissingMethod" access="public" output="false" returntype="any">
+		<cfargument name="missingMethodName" type="string" required="true">
+		<cfargument name="missingMethodArguments" type="any" required="true">
+
+		<cfreturn "You called #arguments.missingMethodName#" />
+	</cffunction>
+
   <cfscript>
 
   function callMockThis(param1){

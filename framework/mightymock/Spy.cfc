@@ -41,17 +41,21 @@
 
 		<cfscript>
 			var proxyVariables = arguments.proxy._mightySpy_getVariablesScope();
-			var proxyMethods = getMetaData(arguments.proxy).functions;
-			var methodCounter = 0;
+			var proxyMethods = structKeyArray(arguments.proxy);
+			var counter = 0;
+			var current = "";
 			var currentMethodName = "";
 			var newMethodScope = structNew();
-			for (methodCounter = 1; methodCounter <= arrayLen(proxyMethods); methodCounter++) {
-				currentMethodName = proxyMethods[methodCounter].name;
-				if (!structKeyExists(proxyMethods[methodCounter], "access") || proxyMethods[methodCounter].access == "public") {
-					//If access isn't defined, it defaults to public.  
-					newMethodScope[currentMethodName] = proxyVariables[currentMethodName];
-					arguments.proxy._mightySpy_removeMethod(currentMethodName);
-					arrayAppend(proxyVariables._mightySpy_publicMethods, currentMethodName);
+			for (counter = 1; counter <= arrayLen(proxyMethods); counter ++) {
+				current = arguments.proxy[proxyMethods[counter]];	
+				if (isCustomFunction(current)) {
+					currentMethodName = proxyMethods[counter];
+					//We don't want to lose the methods we've added for the spy functionality, so test for our namespace
+					if (!findNoCase(currentMethodName, "_mightySpy_")) {
+						newMethodScope[currentMethodName] = current;
+						structDelete(arguments.proxy, currentMethodName);
+						arrayAppend(proxyVariables._mightySpy_publicMethods, currentMethodName);
+					}
 				}
 			}
 			proxyVariables._mightySpy_variables = newMethodScope;
@@ -90,6 +94,12 @@
 				returnValue = returnFunction(argumentCollection=arguments.missingMethodArguments);
 				_mightySpy_recordMethodCall(arguments.missingMethodName, arguments.missingMethodArguments, returnValue);
 				
+				return returnValue;
+			}
+			else if (arrayFindNoCase(variables._mightySpy_publicMethods, "onMissingMethod")) {
+				returnValue = variables._mightySpy_variables.onMissingMethod(arguments.missingMethodName, arguments.missingMethodArguments);
+				_mightySpy_recordMethodCall(arguments.missingMethodName, arguments.missingMethodArguments, returnValue);
+
 				return returnValue;
 			}
 			else {
