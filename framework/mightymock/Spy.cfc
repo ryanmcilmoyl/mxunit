@@ -10,9 +10,11 @@
 			else {
 				proxy = arguments.objectToSpy;
 			}
+			//Add mightySpy utility methods to the proxy object
 			proxy._mightySpy_getVariablesScope = variables._mightySpy_getVariablesScope;
 			proxy._mightySpy_removeMethod = removeMethod;
 
+			//Add properties for spying
 			setProxyProperties(proxy);
 			setProxyMethods(proxy);
 
@@ -20,8 +22,76 @@
 		</cfscript>
 	</cffunction>
 
-	<cffunction access="public" name="_mightySpy_getVariablesScope" output="false" hint="Hooks into the private variables scope">
+	<cffunction 
+		access="public" 
+		name="_mightySpy_getVariablesScope" 
+		output="false" 
+		hint="Hooks into the private variables scope.  This method is added to the proxied object, allowing 
+		the spy access.">
 		<cfreturn variables />
+	</cffunction>
+
+	<cffunction 
+		access="public" 
+		name="getMethodCallCount" 
+		output="false" 
+		returntype="any"
+		hint="For a given method, return the number of times its been called">
+
+		<cfargument name="methodName" type="string" required="true">
+		<cfscript>
+			if (structKeyExists(variables._mightySpy_methodCalls, arguments.methodName)) {
+				return arrayLen(variables._mightySpy_methodCalls[arguments.methodName]);
+			}
+			else {
+				return 0;
+			}
+		</cfscript>
+	</cffunction>
+
+	<cffunction
+		access="public"
+		name="getMethodCalls"
+		output="false"
+		returntype="any"
+		hint="For a given method, return the array of collected method calls">
+
+		<cfargument name="methodName" type="string" required="true">
+
+		<cfscript>
+			if (structKeyExists(variables._mightySpy_methodCalls, arguments.methodName)) {
+				return variables._mightySpy_methodCalls[arguments.methodName];
+			}
+			else {
+				return [];
+			}
+		</cfscript>
+	</cffunction>
+
+	<cffunction access="public" name="onMissingMethod" output="false" returntype="any">
+		<cfargument name="missingMethodName" type="string" required="true">
+		<cfargument name="missingMethodArguments" type="any" required="true">
+
+		<cfscript>
+			var returnValue = "";
+			var returnFunction = "";
+			if (arrayFindNoCase(variables._mightySpy_publicMethods, arguments.missingMethodName)) {
+				returnFunction = variables._mightySpy_variables[arguments.missingMethodName];
+				returnValue = returnFunction(argumentCollection=arguments.missingMethodArguments);
+				_mightySpy_recordMethodCall(arguments.missingMethodName, arguments.missingMethodArguments, returnValue);
+				
+				return returnValue;
+			}
+			else if (arrayFindNoCase(variables._mightySpy_publicMethods, "onMissingMethod")) {
+				returnValue = variables._mightySpy_variables.onMissingMethod(arguments.missingMethodName, arguments.missingMethodArguments);
+				_mightySpy_recordMethodCall(arguments.missingMethodName, arguments.missingMethodArguments, returnValue);
+
+				return returnValue;
+			}
+			else {
+				_mightySpy_throwMissingMethodException(arguments.missingMethodName);	
+			}
+		</cfscript>
 	</cffunction>
 
 	<cffunction access="private" name="setProxyProperties" output="false" hint="Sets the additional spy properties on the spy proxy">
@@ -63,48 +133,12 @@
 			proxyVariables._mightySpy_getMethodCallCount = getMethodCallCount;
 			arguments.proxy._mightySpy_getMethodCallCount = getMethodCallCount;
 			proxyVariables._mightySpy_throwMissingMethodException = throwMissingMethodException;
+			proxyVariables._mightySpy_getMethodCalls = getMethodCalls;
+			arguments.proxy._mightySpy_getMethodCalls = getMethodCalls;
 			//OnMissingMethod needs to be defined on the object itself
 			arguments.proxy.onMissingMethod = onMissingMethod;
 
 			return proxy;
-		</cfscript>
-	</cffunction>
-
-	<cffunction access="public" name="getMethodCallCount" output="false" returntype="any">
-		<cfargument name="methodName" type="string" required="true">
-		<cfscript>
-			if (structKeyExists(variables._mightySpy_methodCalls, arguments.methodName)) {
-				return arrayLen(variables._mightySpy_methodCalls[arguments.methodName].calls);
-			}
-			else {
-				return 0;
-			}
-		</cfscript>
-	</cffunction>
-
-	<cffunction access="public" name="onMissingMethod" output="false" returntype="any">
-		<cfargument name="missingMethodName" type="string" required="true">
-		<cfargument name="missingMethodArguments" type="any" required="true">
-
-		<cfscript>
-			var returnValue = "";
-			var returnFunction = "";
-			if (arrayFindNoCase(variables._mightySpy_publicMethods, arguments.missingMethodName)) {
-				returnFunction = variables._mightySpy_variables[arguments.missingMethodName];
-				returnValue = returnFunction(argumentCollection=arguments.missingMethodArguments);
-				_mightySpy_recordMethodCall(arguments.missingMethodName, arguments.missingMethodArguments, returnValue);
-				
-				return returnValue;
-			}
-			else if (arrayFindNoCase(variables._mightySpy_publicMethods, "onMissingMethod")) {
-				returnValue = variables._mightySpy_variables.onMissingMethod(arguments.missingMethodName, arguments.missingMethodArguments);
-				_mightySpy_recordMethodCall(arguments.missingMethodName, arguments.missingMethodArguments, returnValue);
-
-				return returnValue;
-			}
-			else {
-				_mightySpy_throwMissingMethodException(arguments.missingMethodName);	
-			}
 		</cfscript>
 	</cffunction>
 
@@ -115,17 +149,15 @@
 
 		<cfscript>
 			if (!structKeyExists(variables._mightySpy_methodCalls, arguments.methodName)) {
-				variables._mightySpy_methodCalls[arguments.methodName] = {
-					calls = [
-						{
-							args = arguments.methodArgs,
-							returns = arguments.returnValue
-						}
-					]
-				};
+				variables._mightySpy_methodCalls[arguments.methodName] = [
+					{
+						args = arguments.methodArgs,
+						returns = arguments.returnValue
+					}
+				];
 			}
 			else {
-				arrayAppend(variables._mightySpy_methodCalls[arguments.methodName].calls, {args = arguments.methodArgs, returns = arguments.returnValue});
+				arrayAppend(variables._mightySpy_methodCalls[arguments.methodName], {args = arguments.methodArgs, returns = arguments.returnValue});
 			}
 		</cfscript>
 	</cffunction>

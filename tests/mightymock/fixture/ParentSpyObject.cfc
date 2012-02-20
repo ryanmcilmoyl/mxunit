@@ -14,5 +14,20 @@
 		<cfreturn 'This is a parent method' />
 	</cffunction>
 
+	<cffunction name="callsPrivate" access="public" output="false" returntype="any">
+		<cfreturn privateReturn() />
+	</cffunction>
+
+	<cffunction name="callWithArgs" access="public" output="false" returntype="any">
+		<cfargument name="name" type="string" />
+		<cfargument name="role" type="string" />
+
+		<cfreturn name & role />
+	</cffunction>
+
+	<cffunction name="privateReturn" access="private" output="false" returntype="any">
+		<cfreturn "Hello" />
+	</cffunction>
+
 
 </cfcomponent>
