@@ -114,4 +114,39 @@
 			assertEquals(1, spy._mightySpy_getMethodCallCount("badMethod"), "Call to 'badMethod' not recorded");
 		</cfscript>
 	</cffunction>
+
+	<cffunction 
+		name="testCreatePaused" 
+		output="false" 
+		access="public" 
+		hint="Tests creating spy paused.  Method calls should succeed, but nothing should be recorded">
+
+		<cfscript>
+			var spyFixturePath = "mxunit.tests.mightymock.fixture.ParentSpyObject";
+			var spy = createObject("mxunit.framework.mightymock.Spy").init(spyFixturePath, false).init("Hello");
+			spy._mightySpy_record();	
+
+			assertEquals('This is a parent method', spy.parentSpy());
+			assertEquals(0, spy._mightySpy_getMethodCallCount("init"), "Call to 'init' should not be recorded");
+			assertEquals(1, spy._mightySpy_getMethodCallCount("parentSpy", "Call to 'parentSpy' not recorded"));
+		</cfscript>
+
+	</cffunction>
+
+	<cffunction 
+		name="testPause"
+		output="false"
+		access="public"
+		hint="Tests that the 'pause' method suspends method recording">
+
+		<cfscript>
+			var spyFixturePath = "mxunit.tests.mightymock.fixture.ParentSpyObject";
+			var spy = createObject("mxunit.framework.mightymock.Spy").init(spyFixturePath).init("Hello");
+			spy._mightySpy_pause();	
+
+			assertEquals('This is a parent method', spy.parentSpy());
+			assertEquals(1, spy._mightySpy_getMethodCallCount("init"), "Call to 'init' should not be recorded");
+			assertEquals(0, spy._mightySpy_getMethodCallCount("parentSpy", "Call to 'parentSpy' not recorded"));
+		</cfscript>
+	</cffunction>
 </cfcomponent>
