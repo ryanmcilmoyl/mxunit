@@ -22,28 +22,35 @@
 
 
 	<cffunction name="getInstallRoot" returnType="string" access="public">
-		<cfargument name="fullPath" type="string" required="false" default="" hint="Used for testing, really." />
 		<cfscript>
-			var i = 1;//loop index
-			var sep = "/";
-			var package = arrayNew(1); //list
-			var installRoot = "";
-			//We know THIS will always be in mxunit.framework.ComponentUtils
-			var md = getMetaData(this);
-			var name = md.name ;
-			if(len(arguments.fullPath)) {
-			  name = arguments.fullPath;
+			var root = expandPath("/");
+			var mxunit = 0;
+
+			//shortcut of the usual case of a virtualhost / alias on the web root
+			if(fileExists(expandPath("/mxunit/framework/mxunit-config.xml")))
+			{
+				return getContextRoot() &  "/mxunit";
 			}
-			package = listToArray(name,".");
-			//Use the getContextPath to support J2EE apps
-			installRoot = getPageContext().getRequest().getContextPath() & sep;
-			 for(i; i lte arrayLen(package)-2; i = i + 1){
-			  installRoot = installRoot & package[i] & sep;
-			 }
-			return installRoot;
+		</cfscript>
+
+		<!--- check for the a physical directory --->
+		<cfdirectory action="list" directory="#root#" recurse="true" name="mxunit" filter="mxunit-config.xml">
+
+		<cfif mxunit.RecordCount eq 0>
+			<cfif mxunit.RecordCount eq 0>
+				<cfthrow message="Could not find mxunit in the web root" />
+			</cfif>
+		</cfif>
+
+		<cfscript>
+			root = replaceNoCase("#mxunit.directory#/#mxunit.name#", root,"");
+			root = getDirectoryFromPath(root);
+
+			root = getContextRoot() &  "/" &  left(root, (Len(root) - Len("/framework/")));
+
+			return root;
 		</cfscript>
 	</cffunction>
-
 
 	<cffunction name="getComponentRoot" returnType="string" access="public">
 		<cfargument name="fullPath" type="string" required="false" default="" hint="Test Hook." />
@@ -153,6 +160,46 @@
 			return mockFactoryInfo;
 		</cfscript>
 	</cffunction>
+	
+	<cffunction name="objectIsTypeOf" output="false" access="public" returntype="boolean" hint="returns true if the object 'type' as reported by getMetadata() matches the object's type or if the object is in the inheritance tree of the type">    
+		<cfargument name="object" required="yes" type="any" />
+		<cfargument name="type" required="yes" type="string" />
+		<cfset var md = getMetaData(object)>
+		<cfset var oType = md.name>
+		<cfset var ancestry = buildInheritanceTree(md) />
 
+		<cfreturn listFindNoCase(ancestry, arguments.type)>
+    </cffunction>
+
+	<cffunction name="buildInheritanceTree" access="public" returntype="string">
+		<cfargument name="metaData" type="struct" />
+		<cfargument name="accumulator" type="string" required="false" default=""/>
+
+		<cfscript>
+			var key = "";
+
+			if( structKeyExists(arguments.metadata,"name") AND listFindNoCase(accumulator,arguments.metaData.name) eq 0 ){
+				accumulator =  accumulator & arguments.metaData.name & ",";
+			}
+
+			if(structKeyExists(arguments.metaData,"extends")){
+				//why, oh why, is the structure different for interfaces vs. extends? For F**k's sake!
+				if( structKeyExists( metadata.extends, "name" ) ){
+					accumulator = buildInheritanceTree(metaData.extends, accumulator);
+				}else{
+					accumulator = buildInheritanceTree(metadata.extends[ structKeyList(metadata.extends) ], accumulator);
+				}
+			}
+
+			if(structKeyExists(arguments.metaData,"implements")){
+				for(key in arguments.metadata.implements){
+					accumulator = buildInheritanceTree(metaData.implements[ key ], accumulator);
+				}
+			}
+
+			return  accumulator;
+		</cfscript>
+
+	</cffunction>
 
 </cfcomponent>

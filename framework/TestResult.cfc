@@ -108,23 +108,19 @@
 	--->
 	<cffunction name="setDebug" access="public" returntype="void" output="false">
 		<cfargument name="debugData" type="Any" required="true"/>
-		<!--- TODO Should be injectable setComponentUtil() what about a Guice like thing? --->
-		<cfset var cUtil = createObject("component","ComponentUtils") />
+	
 		<cfset var i = 1>
 		<cfset var tmp = arrayNew(1)>
 		<cfset this.resultItem.debug = arrayNew(1)>
-
+	
 		<cfif NOT isArray(debugData)>
 			<cfset arrayAppend(tmp, debugData)>
 			<cfset debugData = tmp>
 		</cfif>
-
 		<cfloop from="1" to="#arrayLen(debugData)#" index="i">
-			<cfif cUtil.isCfc(arguments.debugData[i])>
-				<cfset arrayAppend( this.resultItem.debug, arguments.debugData[i] )  />
-			<cfelse>
-				<cfset arrayAppend( this.resultItem.debug, duplicate(arguments.debugData[i]) ) />
-			</cfif>
+			<!--- we are no longer calling duplicate()... it's a nice convenience
+			but causes too many problems. Users will now need to duplicate(data) themselves if they need it --->
+			<cfset arrayAppend(this.resultItem.debug, arguments.debugData[i])/>
 		</cfloop>
 	</cffunction>
 
@@ -237,7 +233,8 @@
 	--->
 	<cffunction name="getResultsOutput" returntype="any" hint="" access="public" output="false">
 		<cfargument name="mode" required="true" default="" />
-
+		<cfargument name="mxunit_root" required="false" default=""/>
+		  
 		<cfset arguments.mode = listLast(arguments.mode) />
 
 		<cfswitch expression="#arguments.mode#">
@@ -270,7 +267,7 @@
 			</cfcase>
 
 			<cfdefaultcase>
-				<cfreturn getHTMLResults() />
+				<cfreturn getHTMLResults(arguments.mxunit_root) />
 			</cfdefaultcase>
 		</cfswitch>
 	</cffunction>
@@ -288,9 +285,13 @@
 		Call this method to return preformatted HTML.
 	--->
 	<cffunction name="getHTMLResults" returnType="string" output="false">
+		<cfargument name="mxunit_root" type="string" required="false" default=""/>
 		<cfset var htmlresult = createObject("component", "HtmlTestResult").HTMLTestResult(this) />
-
-		<cfreturn htmlresult.getHtmlresults() />
+		<cfif len(arguments.mxunit_root)>
+			<cfreturn htmlresult.getHtmlresults(arguments.mxunit_root) />
+		<cfelse>
+			<cfreturn htmlresult.getHtmlresults() />
+		</cfif>
 	</cffunction>
 
 	<!---
